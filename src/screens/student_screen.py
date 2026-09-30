@@ -66,8 +66,12 @@ def student_dashboard():
 
 
         stats = stats_map.get(sid,{"total":0, "attended": 0} )
+        attendance_pct = (stats['attended'] / stats['total'] * 100) if stats['total'] > 0 else 100
+
+        if attendance_pct < 75:
+            st.error(f"⚠️ Your attendance in **{sub['name']}** is {attendance_pct:.1f}% — below the required 75%!")
         def unenroll_button():
-                if st.button("Unenroll from tihs course", type='tertiary', width='stretch', icon=':material/delete_forever:'):
+                if st.button("Unenroll from tihs course", type='tertiary', width='stretch', icon=':material/delete_forever:', key=f"unenroll_{sid}"):
                     unenroll_student_to_subject(student_id, sid)
                     st.toast(f'Unenrolled from {sub['name']} successfully!')
                     st.rerun()

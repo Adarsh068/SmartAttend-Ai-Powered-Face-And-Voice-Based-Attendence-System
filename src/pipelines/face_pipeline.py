@@ -6,6 +6,7 @@ import streamlit as st
 
 from src.database.db import get_all_students
 
+from ultralytics import YOLO
 
 @st.cache_resource
 def load_dlib_models():
@@ -23,8 +24,8 @@ def load_dlib_models():
     return detector, sp, facerec
 
 def get_face_embeddings(image_np):
-    detector, sp, facerec = load_dlib_models()
-    faces = detector(image_np, 1)
+    _, sp, facerec = load_dlib_models()
+    faces = detect_faces_yolo(image_np)
 
     encodings= []
 
@@ -102,3 +103,26 @@ def predict_attendance(class_image_np):
         if best_match_score <= resemblance_threshold:
             detected_student[predicted_id] = True
     return detected_student, all_students, len(encodings)
+@st.cache_resource
+def load_yolo_face_model():
+    return YOLO('yolov8n.pt')
+
+
+def detect_faces_yolo(image_np, confidence=0.4):
+    model = load_yolo_face_model()
+    results = model(image_np, verbose=False, classes=[0])  # class 0 = person
+
+    face_boxes = []
+    h_img = image_np.shape[0]
+
+    for r in results:
+        for box in r.boxes:
+            if box.conf[0] >= confidence:
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+
+                person_height = y2 - y1
+                face_bottom = y1 + int(person_height * 0.25)
+
+                face_boxes.append(dlib.rectangle(x1, y1, x2, min(face_bottom, h_img)))
+
+    return face_boxes

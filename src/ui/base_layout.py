@@ -16,6 +16,9 @@ def style_background_home():
                     padding:2.5rem !important;
                     border-radius: 5rem !important;
                     }
+                .stApp div[data-testid="stColumn"] h2{
+                    color: black !important;
+                    }
         </style>  
 
                 """
@@ -31,6 +34,13 @@ def style_background_dashboard():
                     background: #E0E3FF !important;
                 }
 
+                .stApp h2 {
+                    color: black !important;
+                    }
+
+                .stApp [data-testid="stWidgetLabel"] p {
+                    color: black !important;
+                    }
         </style>  
 
                 """
@@ -103,6 +113,20 @@ def style_base_layout():
                 border: none !important;
                 transition: transform 0.25s ease-in-out !important;
                 }
+            h3, h4, p {
+                font-family: 'Outfit', sans-serif;    
+            }
+
+            input {
+                background-color: white !important;
+                color: black !important;
+                border: 1px solid #cbd5e1 !important;
+                border-radius: 0.75rem !important;
+            }
+
+            input::placeholder {
+                color: #64748b !important;
+            }
 
             button:hover{
                 transform :scale(1.05)}

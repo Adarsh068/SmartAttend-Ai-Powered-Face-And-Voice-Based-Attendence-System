@@ -1,5 +1,4 @@
 import streamlit as st
-
 from src.ui.base_layout import style_background_dashboard, style_base_layout
 
 from src.components.header import header_dashboard
@@ -122,14 +121,13 @@ def teacher_tab_take_attendance():
 
     if st.session_state.attendance_images:
         st.header('Added Photos')
-        gallery_cols = st.columns(4)
+        gallery_cols = st.columns(3)
 
         for idx, img in enumerate(st.session_state.attendance_images):
             with gallery_cols[idx % 4 ]:
                 st.image(img, width='stretch', caption=f'Photo {idx+1}')
     has_photos = bool(st.session_state.attendance_images)
-    c1, c2, c3 = st.columns(3)
-
+    c1, c2, c3, = st.columns(3)
     with c1:
         if st.button('Clear all photos', width='stretch', type='tertiary', icon=':material/delete:', disabled=not has_photos):
             st.session_state.attendance_images = []
@@ -189,11 +187,7 @@ def teacher_tab_take_attendance():
     with c3:
         if st.button('Use Voice Attendance', type='primary', width='stretch', icon=':material/mic:'):
             voice_attendance_dialog(selected_subject_id)
-
-
-
-
-
+    
 
 
 
@@ -219,18 +213,19 @@ def teacher_tab_manage_subjects():
                 ("🫂", "Students", sub['total_students']),
                 ("🕰️", "Classes", sub['total_classes']),
             ]
-        def share_btn():
-            if st.button(f"Share Code: {sub['name']}", key=f"share_{sub['subject_code']}", icon=":material/share:"):
-                share_subject_dialog(sub['name'], sub['subject_code'])
-            st.space()
 
-        subject_card(
-            name = sub['name'],
-            code = sub['subject_code'],
-            section = sub['section'],
-            stats=stats,
-            footer_callback=share_btn
-        )
+            def share_btn():
+                if st.button(f"Share Code: {sub['name']}", key=f"share_{sub['subject_code']}", icon=":material/share:"):
+                    share_subject_dialog(sub['name'], sub['subject_code'])
+                st.space()
+
+            subject_card(
+                name = sub['name'],
+                code = sub['subject_code'],
+                section = sub['section'],
+                stats=stats,
+                footer_callback=share_btn
+            )
     else:
         st.info("NO SUBJECTS FOUND. CREATE ONE ABOVE")
 
@@ -255,7 +250,9 @@ def teacher_tab_attendance_records():
             "Time": datetime.fromisoformat(ts).strftime("%Y-%m-%d %I:%M %p") if ts else "N'A",
             "Subject": r['subjects']['name'],
             "Subject Code":r['subjects']['subject_code'],
-            "is_present": bool(r.get('is_present', False))
+            "is_present": bool(r.get('is_present', False)),
+            "student_id": r.get('student_id'),
+            "student_name": r['students']['name'] if r.get('students') else 'Unknown',
         })
 
 
@@ -282,6 +279,50 @@ def teacher_tab_attendance_records():
                   )
     
     st.dataframe(display_df, width='stretch', hide_index=True)
+    st.divider()
+    st.header('📊 Attendance Analytics')
+
+    subject_stats = (
+        df.groupby('Subject')
+        .agg(Present=('is_present', 'sum'), Total=('is_present', 'count'))
+        .reset_index()
+    )
+    subject_stats['Attendance %'] = (subject_stats['Present'] / subject_stats['Total'] * 100).round(1)
+
+    st.subheader('Attendance % by Subject')
+    st.bar_chart(subject_stats.set_index('Subject')['Attendance %'])
+
+    df['Date'] = pd.to_datetime(df['ts_group'])
+    df['Week'] = df['Date'].dt.to_period('W').astype(str)
+
+    weekly_stats = (
+        df.groupby('Week')
+        .agg(Present=('is_present', 'sum'), Total=('is_present', 'count'))
+        .reset_index()
+    )
+    weekly_stats['Attendance %'] = (weekly_stats['Present'] / weekly_stats['Total'] * 100).round(1)
+
+    st.subheader('Weekly Attendance Trend')
+    st.line_chart(weekly_stats.set_index('Week')['Attendance %'])
+
+    st.divider()
+    st.header('🚨 Low Attendance Alerts')
+
+    student_stats = (
+        df.groupby(['student_id', 'student_name', 'Subject'])
+        .agg(Present=('is_present', 'sum'), Total=('is_present', 'count'))
+        .reset_index()
+    )
+    student_stats['Attendance %'] = (student_stats['Present'] / student_stats['Total'] * 100).round(1)
+
+    threshold = 75
+    low_attendance = student_stats[student_stats['Attendance %'] < threshold]
+
+    if low_attendance.empty:
+        st.success(f'All students are above {threshold}% attendance! 🎉')
+    else:
+        for _, row in low_attendance.iterrows():
+            st.error(f"🔴 {row['student_name']} — {row['Subject']}: {row['Attendance %']}% (below {threshold}%)")
 
 
 def login_teacher(username, password):
