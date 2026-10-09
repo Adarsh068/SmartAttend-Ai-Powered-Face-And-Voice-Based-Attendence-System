@@ -43,29 +43,46 @@ def identify_speaker(new_embedding, candidates_dict, threshold=0.65):
     return None, best_score
 
 
-def process_bulk_audio(audio_bytes, candidates_dict, threshold=0.65):
-    try:
-        encoder = load_voice_encoder()
+def _unit(v):
+    v = np.asarray(v, dtype=np.float32)
+    n = np.linalg.norm(v)
+    return v / n if n > 0 else v
 
-        audio, sr = librosa.load(io.BytesIO(audio_bytes), sr=16000)
-        segments = librosa.effects.split(audio, top_db=30)
 
-        identified_results = {}
+def process_bulk_audio(audio_bytes, candidates_dict, threshold=0.60,
+                       window_sec=1.6, hop_sec=0.8):
+    encoder = load_voice_encoder()
+    audio, sr = librosa.load(io.BytesIO(audio_bytes), sr=16000)
 
-        for start, end in segments:
-            if (end - start) < sr * 0.5:
+    ids = list(candidates_dict.keys())
+    stored = np.stack([_unit(candidates_dict[i]) for i in ids])
+
+    win, hop = int(window_sec * sr), int(hop_sec * sr)
+    if len(audio) < win:
+        audio = np.pad(audio, (0, win - len(audio)))
+
+    loud_ref = np.percentile(np.abs(audio), 99) + 1e-9
+    closest = {i: 0.0 for i in ids}
+    present = {}
+
+    for start in range(0, len(audio) - win + 1, hop):
+        chunk = audio[start:start + win]
+        if np.sqrt(np.mean(chunk ** 2)) < 0.05 * loud_ref:
+            continue
+        try:
+            wav = preprocess_wav(chunk)
+            if len(wav) < int(0.5 * sr):
                 continue
-            segment_audio = audio[start:end]
-            wav = preprocess_wav(segment_audio)
-            embedding = encoder.embed_utterance(wav)
+            emb = _unit(encoder.embed_utterance(wav))
+        except Exception:
+            continue
 
-            sid, score = identify_speaker(embedding, candidates_dict, threshold)
+        sims = stored @ emb
+        for i, s in zip(ids, sims):
+            closest[i] = max(closest[i], float(s))
 
-            if sid:
-                if sid not in identified_results or score > identified_results[sid]:
-                    identified_results[sid] = score
+        k = int(np.argmax(sims))
+        if sims[k] >= threshold:
+            present[ids[k]] = max(present.get(ids[k], 0.0), float(sims[k]))
 
-        return identified_results
-    except Exception as e:
-        st.error('Bulk process error')
-        return {}
+    return present, closest
