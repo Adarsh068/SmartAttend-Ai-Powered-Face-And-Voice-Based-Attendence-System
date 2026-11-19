@@ -117,6 +117,10 @@ def style_base_layout():
                 font-family: 'Outfit', sans-serif;    
             }
 
+            .stApp h3 {
+                color: #000000 !important;
+            }
+
             input {
                 background-color: white !important;
                 color: black !important;
