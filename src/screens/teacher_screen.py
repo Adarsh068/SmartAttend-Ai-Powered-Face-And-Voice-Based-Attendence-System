@@ -46,7 +46,7 @@ def teacher_dashboard():
         header_dashboard()
     with c2:
         st.markdown(
-            f"<h3 style='color:#5865F2 !important; font-weight:700;'>"
+            f"<h3 style='color:#000000 !important; font-weight:700;'>"
             f"Welcome, {html.escape(teacher_data['name'])}</h3>",
             unsafe_allow_html=True,
         )
