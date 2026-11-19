@@ -173,7 +173,11 @@ def student_screen():
 
                             voice_emb = None
                             if audio_data:
-                                voice_emb = get_voice_embedding(audio_data.read())
+                                try:
+                                    voice_emb = get_voice_embedding(audio_data.read())
+                                except RuntimeError as e:
+                                    st.error(str(e))
+                                    st.stop()
 
                             response_data = create_student(new_name, face_embedding=face_emb, voice_embedding=voice_emb)
 
