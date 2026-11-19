@@ -1,4 +1,5 @@
 import streamlit as st
+import html
 from src.ui.base_layout import style_background_dashboard, style_base_layout
 
 from src.components.header import header_dashboard
@@ -44,7 +45,11 @@ def teacher_dashboard():
     with c1:
         header_dashboard()
     with c2:
-        st.subheader(f"""Welcome, {teacher_data['name']} """)
+        st.markdown(
+            f"<h3 style='color:#5865F2 !important; font-weight:700;'>"
+            f"Welcome, {html.escape(teacher_data['name'])}</h3>",
+            unsafe_allow_html=True,
+        )
         if st.button("Logout", type='secondary', key='loginbackbtn', shortcut="control+backspace"):
             st.session_state['is_logged_in'] = False
             del st.session_state.teacher_data 
